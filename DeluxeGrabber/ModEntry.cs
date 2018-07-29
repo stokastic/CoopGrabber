@@ -12,12 +12,103 @@ namespace DeluxeGrabber
     public class ModEntry : Mod {
 
         private ModConfig Config;
+        private List<string> quality = new List<string>() { "basic", "silver", "gold", "3", "iridium" };
+        private readonly int FARMING = 0;
+        private readonly int FORAGING = 2;
 
         public override void Entry(IModHelper helper) {
 
             Config = Helper.ReadConfig<ModConfig>();
 
+            Helper.ConsoleCommands.Add("printLocation", "Print current map and tile location", PrintLocation);
+            Helper.ConsoleCommands.Add("setForagerLocation", "Set current location as global grabber location", SetForagerLocation);
+
             TimeEvents.AfterDayStarted += TimeEvents_AfterDayStarted;
+            LocationEvents.ObjectsChanged += LocationEvents_ObjectsChanged;
+        }
+
+        private void SetForagerLocation(string arg1, string[] arg2) {
+            if (!Context.IsWorldReady) {
+                return;
+            }
+            Config.GlobalForageMap = Game1.player.currentLocation.Name;
+            Config.GlobalForageTileX = Game1.player.getTileX();
+            Config.GlobalForageTileY = Game1.player.getTileY();
+            Helper.WriteConfig(Config);
+        }
+
+        private void PrintLocation(string arg1, string[] arg2) {
+            if (!Context.IsWorldReady) {
+                return;
+            }
+            Monitor.Log($"Map: {Game1.player.currentLocation.Name}");
+            Monitor.Log($"Tile: {Game1.player.getTileLocation()}");
+        }
+
+        private void LocationEvents_ObjectsChanged(object sender, EventArgsLocationObjectsChanged e) {
+            if (!Config.DoGlobalForage) {
+                return;
+            }
+
+            GameLocation foragerMap;
+            foragerMap = Game1.getLocationFromName(Config.GlobalForageMap);
+            if (foragerMap == null) {
+                return;
+            }
+
+            foragerMap.Objects.TryGetValue(new Vector2(Config.GlobalForageTileX, Config.GlobalForageTileY), out Object grabber);
+
+            if (grabber == null || !grabber.Name.Contains("Grabber")) {
+                return;
+            }
+
+            
+            System.Random random = new System.Random();
+            foreach (KeyValuePair<Vector2, Object> pair in e.Added) {
+
+                if (pair.Value.ParentSheetIndex != 430 || pair.Value.bigCraftable.Value) {
+                    continue;
+                }
+
+                if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                    return;
+                }
+
+                Object obj = pair.Value;
+                if (obj.Stack == 0) {
+                    obj.Stack = 1;
+                }
+
+                if (!obj.isForage(null) && !IsGrabbableWorld(obj)) {
+                    continue;
+                }
+
+                if (Game1.player.professions.Contains(16)) {
+                    obj.Quality = 4;
+                } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
+                    obj.Quality = 2;
+                } else if (random.NextDouble() < Game1.player.ForagingLevel / 15.0) {
+                    obj.Quality = 1;
+                }
+
+                if (Game1.player.professions.Contains(13)) {
+                    while (random.NextDouble() < 0.2) {
+                        obj.Stack += 1;
+                    }
+                }
+
+                Monitor.Log($"Grabbing truffle: {obj.Stack}x{quality[obj.Quality]}", LogLevel.Trace);
+                (grabber.heldObject.Value as Chest).addItem(obj);
+                e.Location.Objects.Remove(pair.Key);
+
+                if (Config.DoGainExperience) {
+                    gainExperience(FORAGING, 7);
+                }
+            }
+
+            if ((grabber.heldObject.Value as Chest).items.Count > 0) {
+                grabber.showNextIndex.Value = true;
+            }
         }
 
         private void TimeEvents_AfterDayStarted(object sender, System.EventArgs e) {
@@ -31,6 +122,7 @@ namespace DeluxeGrabber
             Object grabber = null; // stores a reference to the autograbber
             List<Vector2> grabbables = new List<Vector2>(); // stores a list of all items which can be grabbed
             Dictionary<string, int> itemsAdded = new Dictionary<string, int>();
+            GameLocation location;
 
             foreach (Building building in Game1.getFarm().buildings) {
 
@@ -38,29 +130,51 @@ namespace DeluxeGrabber
                 grabbables.Clear();
                 itemsAdded.Clear();
 
-                if (building is Coop) {
-                    Monitor.Log($"{building.nameOfIndoors}", LogLevel.Trace);
-                    GameLocation location = (building as Coop).indoors.Value;
+                if (building.buildingType.Contains("Coop") || building.buildingType.Contains("Slime")) {
+
+                    Monitor.Log($"Searching {building.buildingType} at <{building.tileX},{building.tileY}> for auto-grabber", LogLevel.Trace);
+
+                    location = building.indoors.Value;
                     if (location != null) {
 
                         // populate list of objects which are grabbable, and find an autograbber
                         foreach (KeyValuePair<Vector2, Object> pair in location.Objects.Pairs) {
                             if (pair.Value.Name.Contains("Grabber")) {
-                                Monitor.Log($"  {pair.Key}: {pair.Value.Name}", LogLevel.Trace);
+                                Monitor.Log($"  Grabber found  at {pair.Key}", LogLevel.Trace);
                                 grabber = pair.Value;
                             }
                             if (IsGrabbableCoop(pair.Value)) {
+                                Monitor.Log($"    Found grabbable item at {pair.Key}: {pair.Value.Name}", LogLevel.Trace);
                                 grabbables.Add(pair.Key);
                             }
                         }
 
                         if (grabber == null) {
-                            return;
+                            Monitor.Log("  No grabber found", LogLevel.Trace);
+                            continue;
                         }
 
                         // add items to grabber and remove from floor
+                        bool full = false;
                         foreach (Vector2 tile in grabbables) {
-                            if ((grabber.heldObject.Value as Chest).addItem(location.Objects[tile]) != null) {
+
+                            if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                                Monitor.Log($"  Grabber is full", LogLevel.Trace);
+                                full = true;
+                                break;
+                            }
+
+                            if (location.objects[tile].Name.Contains("Slime Ball")) {
+                                System.Random random = new System.Random((int)Game1.stats.daysPlayed + (int)Game1.uniqueIDForThisGame + (int)tile.X * 77 + (int)tile.Y * 777 + 2);
+                                (grabber.heldObject.Value as Chest).addItem(new Object(766, random.Next(10, 21), false, -1, 0));
+                                int i = 0;
+                                while (random.NextDouble() < 0.33) {
+                                    i++;
+                                }
+                                if (i > 0) {
+                                    (grabber.heldObject.Value as Chest).addItem(new Object(557, i, false, -1, 0));
+                                }
+                            } else if ((grabber.heldObject.Value as Chest).addItem(location.Objects[tile]) != null) {
                                 continue;
                             }
                             string name = location.Objects[tile].Name;
@@ -70,6 +184,13 @@ namespace DeluxeGrabber
                                 itemsAdded[name] += 1;
                             }
                             location.Objects.Remove(tile);
+                            if (Config.DoGainExperience) {
+                                gainExperience(FARMING, 5);
+                            }
+                        }
+
+                        if (full) {
+                            continue;
                         }
 
                         foreach (KeyValuePair<string, int> pair in itemsAdded) {
@@ -88,6 +209,11 @@ namespace DeluxeGrabber
         }
 
         private void AutograbCrops() {
+
+            if (!Config.DoHarvestCrops) {
+                return;
+            }
+
             int range = Config.GrabberRange;
             foreach (GameLocation location in Game1.locations) {
                 foreach (KeyValuePair<Vector2, Object> pair in location.Objects.Pairs) {
@@ -96,20 +222,28 @@ namespace DeluxeGrabber
                         if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
                             continue;
                         }
+                        bool full = (grabber.heldObject.Value as Chest).items.Count >= 36;
                         for (int x = (int)pair.Key.X - range; x < pair.Key.X + range + 1; x ++) {
-                            for (int y = (int)pair.Key.Y - range; y < pair.Key.Y + range + 1; y++) {
+                            for (int y = (int)pair.Key.Y - range; y < pair.Key.Y + range + 1 && !full; y++) {
                                 Vector2 tile = new Vector2(x, y);
                                 if (location.terrainFeatures.ContainsKey(tile) && location.terrainFeatures[tile] is HoeDirt dirt) {
                                     Object harvest = GetHarvest(dirt, tile, location);
                                     if (harvest != null) {
                                         (grabber.heldObject.Value as Chest).addItem(harvest);
+                                        if (Config.DoGainExperience) {
+                                            gainExperience(FORAGING, 3);
+                                        }
                                     }
                                 } else if (location.Objects.ContainsKey(tile) && location.Objects[tile] is IndoorPot pot) {
                                     Object harvest = GetHarvest(pot.hoeDirt.Value, tile, location);
                                     if (harvest != null) {
                                         (grabber.heldObject.Value as Chest).addItem(harvest);
+                                        if (Config.DoGainExperience) {
+                                            gainExperience(FORAGING, 3);
+                                        }
                                     }
                                 }
+                                full = (grabber.heldObject.Value as Chest).items.Count >= 36;
                             }
                         }
                         if (grabber != null && (grabber.heldObject.Value as Chest).items.Count > 0) {
@@ -125,6 +259,21 @@ namespace DeluxeGrabber
             Crop crop = dirt.crop;
             Object harvest;
             int stack = 0;
+
+            if (crop is null) {
+                return null;
+            }
+
+            if (!Config.DoHarvestFlowers) {
+                switch(crop.indexOfHarvest.Value) {
+                    case 421: return null; // sunflower
+                    case 593: return null; // summer spangle
+                    case 595: return null; // fairy rose
+                    case 591: return null; // tulip
+                    case 597: return null; // blue jazz
+                    case 376: return null; // poppy
+                }
+            }
 
             if (crop != null && crop.currentPhase.Value >= crop.phaseDays.Count - 1 && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0)) {
                 int num1 = 1;
@@ -213,13 +362,108 @@ namespace DeluxeGrabber
                     if (pair.Value.bigCraftable.Value) {
                         continue;
                     }
-                    if (pair.Value.isForage(null)) {
+                    if (IsGrabbableWorld(pair.Value) || pair.Value.isForage(null)) {
                         grabbables.Add(pair.Key);
+                    }
+                }
+
+                // Check for spring onions
+                if (location.Name.Equals("Forest")) {
+                    foreach (TerrainFeature feature in location.terrainFeatures.Values) {
+
+                        if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                            Monitor.Log("Global grabber full", LogLevel.Info);
+                            return;
+                        }
+
+                        if (feature is HoeDirt dirt) {
+                            if (dirt.crop != null) {
+                                if (dirt.crop.forageCrop.Value && dirt.crop.whichForageCrop.Value == 1) { // spring onion
+                                    Object onion = new Object(399, 1, false, -1, 0);
+
+                                    if (Game1.player.professions.Contains(16)) {
+                                        onion.Quality = 4;
+                                    } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
+                                        onion.Quality = 2;
+                                    } else if (random.NextDouble() < Game1.player.ForagingLevel / 15.0) {
+                                        onion.Quality = 1;
+                                    }
+
+                                    if (Game1.player.professions.Contains(13)) {
+                                        while (random.NextDouble() < 0.2) {
+                                            onion.Stack += 1;
+                                        }
+                                    }
+
+                                    (grabber.heldObject.Value as Chest).addItem(onion);
+                                    if (!itemsAdded.ContainsKey("Spring Onion")) {
+                                        itemsAdded.Add("Spring Onion", 1);
+                                    } else {
+                                        itemsAdded["Spring Onion"] += 1;
+                                    }
+
+                                    dirt.crop = null;
+
+                                    if (Config.DoGainExperience) {
+                                        gainExperience(FORAGING, 3);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check for berry bushes
+                int berryIndex;
+                string berryType;
+                
+                foreach (LargeTerrainFeature feature in location.largeTerrainFeatures) {
+
+                    if (Game1.currentSeason == "spring") {
+                        berryType = "Salmon Berry";
+                        berryIndex = 296;
+                    } else if (Game1.currentSeason == "fall") {
+                        berryType = "Blackberry";
+                        berryIndex = 410;
+                    } else {
+                        break;
+                    }
+
+                    if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                        Monitor.Log("Global grabber full", LogLevel.Info);
+                        return;
+                    }
+
+                    if (feature is Bush bush) {
+                        if (bush.inBloom(Game1.currentSeason, Game1.dayOfMonth) && bush.tileSheetOffset.Value == 1) {
+                            
+                            Object berry = new Object(berryIndex, 1 + Game1.player.FarmingLevel / 4, false, -1, 0);
+                            
+                            if (Game1.player.professions.Contains(16)) {
+                                berry.Quality = 4;
+                            }
+
+                            bush.tileSheetOffset.Value = 0;
+                            bush.setUpSourceRect();
+
+                            Item item = (grabber.heldObject.Value as Chest).addItem(berry);
+                            if (!itemsAdded.ContainsKey(berryType)) {
+                                itemsAdded.Add(berryType, 1);
+                            } else {
+                                itemsAdded[berryType] += 1;
+                            }
+                        }
                     }
                 }
 
                 // add items to grabber and remove from floor
                 foreach (Vector2 tile in grabbables) {
+
+                    if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                        Monitor.Log("Global grabber full", LogLevel.Info);
+                        return;
+                    }
+
                     Object obj = location.Objects[tile];
 
                     if (Game1.player.professions.Contains(16)) {
@@ -230,6 +474,12 @@ namespace DeluxeGrabber
                         obj.Quality = 1;
                     }
 
+                    if (Game1.player.professions.Contains(13)) {
+                        while (random.NextDouble() < 0.2) {
+                            obj.Stack += 1;
+                        }
+                    }
+
                     Item item = (grabber.heldObject.Value as Chest).addItem(obj);
                     string name = location.Objects[tile].Name;
                     if (!itemsAdded.ContainsKey(name)) {
@@ -238,12 +488,16 @@ namespace DeluxeGrabber
                         itemsAdded[name] += 1;
                     }
                     location.Objects.Remove(tile);
+
+                    if (Config.DoGainExperience) {
+                        gainExperience(FORAGING, 7);
+                    }
                 }
 
                 foreach (KeyValuePair<string, int> pair in itemsAdded) {
                     string plural = "";
                     if (pair.Value != 1) plural = "s";
-                    Monitor.Log($"  Added {pair.Value} {pair.Key}{plural}", LogLevel.Trace);
+                    Monitor.Log($"  {location} - found {pair.Value} {pair.Key}{plural}", LogLevel.Trace);
                 }
 
                 if ((grabber.heldObject.Value as Chest).items.Count > 0) {
@@ -253,6 +507,10 @@ namespace DeluxeGrabber
         }
 
         private bool IsGrabbableCoop(Object obj) {
+            if (obj.bigCraftable.Value) {
+                return obj.Name.Contains("Slime Ball");
+            }
+
             if (obj.Name.Contains("Egg") || obj.Name.Contains("Wool") || obj.Name.Contains("Foot") || obj.Name.Contains("Feather")) {
                 return true;
             }
@@ -260,11 +518,15 @@ namespace DeluxeGrabber
         }
 
         private bool IsGrabbableWorld(Object obj) {
+            if (obj.bigCraftable.Value) {
+                return false;
+            }
             switch (obj.ParentSheetIndex) {
                 case 16: // Wild Horseradish
                 case 18: // Daffodil
                 case 20: // Leek
                 case 22: // Dandelion
+                case 430: // Truffle
                 case 399: // Spring Onion
                 case 257: // Morel
                 case 404: // Common Mushroom
@@ -297,6 +559,10 @@ namespace DeluxeGrabber
                     return true;
             }
             return false;
+        }
+
+        private void gainExperience(int skill, int xp) {
+            Game1.player.gainExperience(skill, xp);
         }
     }
 }
