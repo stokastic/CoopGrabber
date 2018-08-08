@@ -1,11 +1,14 @@
 ﻿using Microsoft.Xna.Framework;
+using Netcode;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
+using System;
 using System.Collections.Generic;
+using Object = StardewValley.Object;
 
 namespace DeluxeGrabber
 {
@@ -223,25 +226,16 @@ namespace DeluxeGrabber
                             continue;
                         }
                         bool full = (grabber.heldObject.Value as Chest).items.Count >= 36;
-                        for (int x = (int)pair.Key.X - range; x < pair.Key.X + range + 1; x ++) {
+                        for (int x = (int)pair.Key.X - range; x < pair.Key.X + range + 1 && !full; x ++) {
                             for (int y = (int)pair.Key.Y - range; y < pair.Key.Y + range + 1 && !full; y++) {
                                 Vector2 tile = new Vector2(x, y);
-                                if (location.terrainFeatures.ContainsKey(tile) && location.terrainFeatures[tile] is HoeDirt dirt) {
-                                    Object harvest = GetHarvest(dirt, tile, location);
-                                    if (harvest != null) {
-                                        (grabber.heldObject.Value as Chest).addItem(harvest);
-                                        if (Config.DoGainExperience) {
-                                            gainExperience(FORAGING, 3);
-                                        }
-                                    }
-                                } else if (location.Objects.ContainsKey(tile) && location.Objects[tile] is IndoorPot pot) {
-                                    Object harvest = GetHarvest(pot.hoeDirt.Value, tile, location);
-                                    if (harvest != null) {
-                                        (grabber.heldObject.Value as Chest).addItem(harvest);
-                                        if (Config.DoGainExperience) {
-                                            gainExperience(FORAGING, 3);
-                                        }
-                                    }
+                                if (location.terrainFeatures.ContainsKey(tile) && location.terrainFeatures[tile] is HoeDirt dirt)
+                                {
+                                    HarvestIntoGrabber(dirt, tile, location, grabber.heldObject.Value as Chest);
+                                }
+                                else if (location.Objects.ContainsKey(tile) && location.Objects[tile] is IndoorPot pot)
+                                {
+                                    HarvestIntoGrabber(pot.hoeDirt.Value, tile, location, grabber.heldObject.Value as Chest);
                                 }
                                 full = (grabber.heldObject.Value as Chest).items.Count >= 36;
                             }
@@ -254,57 +248,73 @@ namespace DeluxeGrabber
             }
         }
 
-        private Object GetHarvest(HoeDirt dirt, Vector2 tile, GameLocation location) {
-
+        private void HarvestIntoGrabber(HoeDirt dirt, Vector2 tile, GameLocation location, Chest grabberContents)
+        {
             Crop crop = dirt.crop;
             Object harvest;
-            int stack = 0;
 
-            if (crop is null) {
-                return null;
+            if (crop is null || crop.dead || crop.forageCrop) {
+                return;
             }
 
             if (!Config.DoHarvestFlowers) {
                 switch(crop.indexOfHarvest.Value) {
-                    case 421: return null; // sunflower
-                    case 593: return null; // summer spangle
-                    case 595: return null; // fairy rose
-                    case 591: return null; // tulip
-                    case 597: return null; // blue jazz
-                    case 376: return null; // poppy
+                    case 421: return; // sunflower
+                    case 593: return; // summer spangle
+                    case 595: return; // fairy rose
+                    case 591: return; // tulip
+                    case 597: return; // blue jazz
+                    case 376: return; // poppy
                 }
             }
 
-            if (crop != null && crop.currentPhase.Value >= crop.phaseDays.Count - 1 && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0)) {
-                int num1 = 1;
-                int num2 = 0;
-                int num3 = 0;
+            if (crop.currentPhase.Value >= crop.phaseDays.Count - 1 && (!crop.fullyGrown.Value || crop.dayOfCurrentPhase.Value <= 0)) {
+                int harvest_amount = 1; // num1
+                int quality = 0; // num2
+                int fertilizer_quality_boost = 0; // num3
                 if (crop.indexOfHarvest.Value == 0)
-                    return null;
+                {
+                    return;
+                }
                 System.Random random = new System.Random((int)tile.X * 7 + (int)tile.Y * 11 + (int)Game1.stats.DaysPlayed + (int)Game1.uniqueIDForThisGame);
                 switch ((dirt.fertilizer.Value)) {
                     case 368:
-                        num3 = 1;
+                        fertilizer_quality_boost = 1;
                         break;
                     case 369:
-                        num3 = 2;
+                        fertilizer_quality_boost = 2;
                         break;
                 }
-                double num4 = 0.2 * (Game1.player.FarmingLevel / 10.0) + 0.2 * num3 * ((Game1.player.FarmingLevel + 2.0) / 12.0) + 0.01;
-                double num5 = System.Math.Min(0.75, num4 * 2.0);
-                if (random.NextDouble() < num4)
-                    num2 = 2;
-                else if (random.NextDouble() < num5)
-                    num2 = 1;
+                // num4
+                double gold_chance = 0.2 * (Game1.player.FarmingLevel / 10.0) + 0.2 * fertilizer_quality_boost * ((Game1.player.FarmingLevel + 2.0) / 12.0) + 0.01;
+                // num5
+                double silver_chance = System.Math.Min(0.75, gold_chance * 2.0);
+                if (random.NextDouble() < gold_chance)
+                    quality = 2;
+                else if (random.NextDouble() < silver_chance)
+                    quality = 1;
                 if ((crop.minHarvest.Value) > 1 || (crop.maxHarvest.Value) > 1)
-                    num1 = random.Next(crop.minHarvest.Value, System.Math.Min(crop.minHarvest.Value + 1, crop.maxHarvest.Value + 1 + Game1.player.FarmingLevel / crop.maxHarvestIncreasePerFarmingLevel.Value));
+                {
+                    harvest_amount = random.Next(
+                        crop.minHarvest.Value,
+                        System.Math.Min(
+                            crop.minHarvest.Value + 1,
+                            crop.maxHarvest.Value + 1 + Game1.player.FarmingLevel / crop.maxHarvestIncreasePerFarmingLevel.Value));
+                }
                 if (crop.chanceForExtraCrops.Value > 0.0) {
                     while (random.NextDouble() < System.Math.Min(0.9, crop.chanceForExtraCrops.Value))
-                        ++num1;
+                        ++harvest_amount;
                 }
                 if (crop.harvestMethod.Value == 1) {
-                    for (int i = 0; i < num1; i++) {
-                        stack += 1;
+                    // harvest with scythe
+                    for (int i = 0; i < harvest_amount; i++) {
+                        harvest = new Object(parentSheetIndex: crop.indexOfHarvest, initialStack: 1, quality: quality);
+                        grabberContents.addItem(harvest);
+                    }
+                    if (Config.DoGainExperience)
+                    {
+                        float num6 = (float)(16.0 * Math.Log(0.018 * (double)Convert.ToInt32(Game1.objectInformation[(int)((NetFieldBase<int, NetInt>)crop.indexOfHarvest)].Split('/')[1]) + 1.0, Math.E));
+                        Game1.player.gainExperience(0, (int)Math.Round((double)num6));
                     }
                     if (crop.regrowAfterHarvest.Value != -1) {
                         crop.dayOfCurrentPhase.Value = crop.regrowAfterHarvest.Value;
@@ -312,12 +322,40 @@ namespace DeluxeGrabber
                     } else {
                         dirt.crop = null;
                     }
-                    return new Object(crop.indexOfHarvest.Value, stack, false, -1, num2);
                 } else {
-                    if (!crop.programColored.Value) {
-                        harvest = new Object(crop.indexOfHarvest.Value, 1, false, -1, num2);
-                    } else {
-                        harvest = new ColoredObject(crop.indexOfHarvest.Value, 1, crop.tintColor.Value) { Quality = num2 };
+                    if (!crop.programColored.Value)
+                    {
+                        // not a flower
+                        harvest = new Object(crop.indexOfHarvest.Value, 1, false, -1, quality);
+                        grabberContents.addItem(harvest);
+                    }
+                    else
+                    {
+                        // is a flower
+                        harvest = new ColoredObject(crop.indexOfHarvest.Value, 1, crop.tintColor.Value);
+                        harvest.Quality = quality;
+                        grabberContents.addItem(harvest);
+                    }
+                    if (random.NextDouble() < (double)Game1.player.LuckLevel / 1500.0 + Game1.dailyLuck / 1200.0 + 9.99999974737875E-05)
+                    {
+                        harvest_amount *= 2;
+                    }
+                    if ((int)((NetFieldBase<int, NetInt>)crop.indexOfHarvest) == 421) // sunflower
+                    {
+                        crop.indexOfHarvest.Value = 431; // sunflower seed
+                        harvest_amount = random.Next(1, 4);
+                    }
+                    for (int index = 0; index < harvest_amount - 1; ++index)
+                    {
+                        harvest = new Object(parentSheetIndex: crop.indexOfHarvest, initialStack: 1, quality: 0);
+                        grabberContents.addItem(harvest);
+                        // this may fail, we already used one slot for normal/silver/gold quality crop and now
+                        // we are adding normal. We still do need to clear the crop, and parent won't call us again
+                    }
+                    if (Config.DoGainExperience)
+                    {
+                        float num8 = (float)(16.0 * Math.Log(0.018 * (double)Convert.ToInt32(Game1.objectInformation[(int)((NetFieldBase<int, NetInt>)crop.indexOfHarvest)].Split('/')[1]) + 1.0, Math.E));
+                        Game1.player.gainExperience(0, (int)Math.Round((double)num8));
                     }
                     if (crop.regrowAfterHarvest.Value != -1) {
                         crop.dayOfCurrentPhase.Value = crop.regrowAfterHarvest.Value;
@@ -325,10 +363,8 @@ namespace DeluxeGrabber
                     } else {
                         dirt.crop = null;
                     }
-                    return harvest;
                 }
             }
-            return null;
         }
 
         private void AutograbWorld() {
