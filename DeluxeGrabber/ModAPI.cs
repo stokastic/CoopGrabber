@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 
 namespace DeluxeGrabber {
-    public class PrismaticAPI {
+    public class ModAPI {
         private readonly ModConfig Config;
 
         public int GrabberRange { get { return this.Config.GrabberRange; } }
@@ -15,7 +15,7 @@ namespace DeluxeGrabber {
             }
         }
 
-        internal PrismaticAPI(ModConfig config) {
+        internal ModAPI(ModConfig config) {
             this.Config = config;
         }
     }

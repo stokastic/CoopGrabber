@@ -33,7 +33,7 @@ namespace DeluxeGrabber
         /// <summary>Get an API that other mods can access. This is always called after <see cref="M:StardewModdingAPI.Mod.Entry(StardewModdingAPI.IModHelper)" />.</summary>
         public override object GetApi()
         {
-            return new PrismaticAPI(this.Config);
+            return new ModAPI(this.Config);
         }
 
         private void SetForagerLocation(string arg1, string[] arg2) {
