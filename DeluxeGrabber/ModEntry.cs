@@ -26,8 +26,8 @@ namespace DeluxeGrabber
             Helper.ConsoleCommands.Add("printLocation", "Print current map and tile location", PrintLocation);
             Helper.ConsoleCommands.Add("setForagerLocation", "Set current location as global grabber location", SetForagerLocation);
 
-            TimeEvents.AfterDayStarted += TimeEvents_AfterDayStarted;
-            LocationEvents.ObjectsChanged += LocationEvents_ObjectsChanged;
+            helper.Events.GameLoop.DayStarted += OnDayStarted;
+            helper.Events.World.ObjectListChanged += OnObjectListChanged;
         }
 
         /// <summary>Get an API that other mods can access. This is always called after <see cref="M:StardewModdingAPI.Mod.Entry(StardewModdingAPI.IModHelper)" />.</summary>
@@ -54,7 +54,10 @@ namespace DeluxeGrabber
             Monitor.Log($"Tile: {Game1.player.getTileLocation()}");
         }
 
-        private void LocationEvents_ObjectsChanged(object sender, EventArgsLocationObjectsChanged e) {
+        /// <summary>Raised after objects are added or removed in a location.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event data.</param>
+        private void OnObjectListChanged(object sender, ObjectListChangedEventArgs e) {
             if (!Config.DoHarvestTruffles) {
                 return;
             }
@@ -120,7 +123,10 @@ namespace DeluxeGrabber
             }
         }
 
-        private void TimeEvents_AfterDayStarted(object sender, System.EventArgs e) {
+        /// <summary>Raised after the game begins a new day (including when the player loads a save).</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event data.</param>
+        private void OnDayStarted(object sender, DayStartedEventArgs e) {
 
             AutograbBuildings();
             AutograbCrops();
