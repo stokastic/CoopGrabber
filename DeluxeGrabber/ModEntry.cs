@@ -83,7 +83,7 @@ namespace DeluxeGrabber
                     continue;
                 }
 
-                if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                     return;
                 }
 
@@ -96,15 +96,15 @@ namespace DeluxeGrabber
                     continue;
                 }
 
-                if (Game1.player.professions.Contains(16)) {
-                    obj.Quality = 4;
+                if (Game1.player.professions.Contains(Farmer.botanist)) {
+                    obj.Quality = SObject.bestQuality;
                 } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
-                    obj.Quality = 2;
+                    obj.Quality = SObject.highQuality;
                 } else if (random.NextDouble() < Game1.player.ForagingLevel / 15.0) {
-                    obj.Quality = 1;
+                    obj.Quality = SObject.medQuality;
                 }
 
-                if (Game1.player.professions.Contains(13)) {
+                if (Game1.player.professions.Contains(Farmer.gatherer)) {
                     while (random.NextDouble() < 0.2) {
                         obj.Stack += 1;
                     }
@@ -174,7 +174,7 @@ namespace DeluxeGrabber
                         bool full = false;
                         foreach (Vector2 tile in grabbables) {
 
-                            if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                            if (grabber.items.Count >= Chest.capacity) {
                                 Monitor.Log($"  Grabber is full", LogLevel.Trace);
                                 full = true;
                                 break;
@@ -235,10 +235,10 @@ namespace DeluxeGrabber
                 foreach (KeyValuePair<Vector2, SObject> pair in location.Objects.Pairs) {
                     if (pair.Value.Name.Contains("Grabber")) {
                         SObject grabber = pair.Value;
-                        if ((grabber.heldObject.Value == null) || (grabber.heldObject.Value as Chest).items.Count >= 36) {
+                        if ((grabber.heldObject.Value == null) || (grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                             continue;
                         }
-                        bool full = (grabber.heldObject.Value as Chest).items.Count >= 36;
+                        bool full = (grabber.heldObject.Value as Chest).items.Count >= Chest.capacity;
                         for (int x = (int)pair.Key.X - range; x < pair.Key.X + range + 1; x ++) {
                             for (int y = (int)pair.Key.Y - range; y < pair.Key.Y + range + 1 && !full; y++) {
                                 Vector2 tile = new Vector2(x, y);
@@ -278,7 +278,7 @@ namespace DeluxeGrabber
                                         }
                                     }
                                 }
-                                full = (grabber.heldObject.Value as Chest).items.Count >= 36;
+                                full = (grabber.heldObject.Value as Chest).items.Count >= Chest.capacity;
                             }
                         }
                         if (grabber != null && (grabber.heldObject.Value as Chest).items.Count > 0) {
@@ -440,7 +440,7 @@ namespace DeluxeGrabber
                 if (location.Name.Equals("Forest")) {
                     foreach (TerrainFeature feature in location.terrainFeatures.Values) {
 
-                        if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                        if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
@@ -450,7 +450,7 @@ namespace DeluxeGrabber
                                 if (dirt.crop.forageCrop.Value && dirt.crop.whichForageCrop.Value == 1) { // spring onion
                                     SObject onion = new SObject(399, 1, false, -1, 0);
 
-                                    if (Game1.player.professions.Contains(16)) {
+                                    if (Game1.player.professions.Contains(Farmer.botanist)) {
                                         onion.Quality = 4;
                                     } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
                                         onion.Quality = 2;
@@ -458,7 +458,7 @@ namespace DeluxeGrabber
                                         onion.Quality = 1;
                                     }
 
-                                    if (Game1.player.professions.Contains(13)) {
+                                    if (Game1.player.professions.Contains(Farmer.gatherer)) {
                                         while (random.NextDouble() < 0.2) {
                                             onion.Stack += 1;
                                         }
@@ -498,7 +498,7 @@ namespace DeluxeGrabber
                         break;
                     }
 
-                    if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                    if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                         Monitor.Log("Global grabber full", LogLevel.Info);
                         return;
                     }
@@ -508,7 +508,7 @@ namespace DeluxeGrabber
                             
                             SObject berry = new SObject(berryIndex, 1 + Game1.player.FarmingLevel / 4, false, -1, 0);
                             
-                            if (Game1.player.professions.Contains(16)) {
+                            if (Game1.player.professions.Contains(Farmer.botanist)) {
                                 berry.Quality = 4;
                             }
 
@@ -528,14 +528,14 @@ namespace DeluxeGrabber
                 // add items to grabber and remove from floor
                 foreach (Vector2 tile in grabbables) {
 
-                    if ((grabber.heldObject.Value as Chest).items.Count >= 36) {
+                    if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                         Monitor.Log("Global grabber full", LogLevel.Info);
                         return;
                     }
 
                     SObject obj = location.Objects[tile];
 
-                    if (Game1.player.professions.Contains(16)) {
+                    if (Game1.player.professions.Contains(Farmer.botanist)) {
                         obj.Quality = 4;
                     } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
                         obj.Quality = 2;
@@ -543,7 +543,7 @@ namespace DeluxeGrabber
                         obj.Quality = 1;
                     }
 
-                    if (Game1.player.professions.Contains(13)) {
+                    if (Game1.player.professions.Contains(Farmer.gatherer)) {
                         while (random.NextDouble() < 0.2) {
                             obj.Stack += 1;
                         }
@@ -571,7 +571,7 @@ namespace DeluxeGrabber
                         foreach (SObject obj in location.Objects.Values)
                         {
 
-                            if ((grabber.heldObject.Value as Chest).items.Count >= 36)
+                            if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity)
                             {
                                 Monitor.Log("Global grabber full", LogLevel.Info);
                                 return;
