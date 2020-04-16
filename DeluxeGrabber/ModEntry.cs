@@ -332,7 +332,7 @@ namespace DeluxeGrabber
                 else if (random.NextDouble() < num5)
                     num2 = 1;
                 if ((crop.minHarvest.Value) > 1 || (crop.maxHarvest.Value) > 1)
-                    num1 = random.Next(crop.minHarvest.Value, System.Math.Min(crop.minHarvest.Value + 1, crop.maxHarvest.Value + 1 + Game1.player.FarmingLevel / crop.maxHarvestIncreasePerFarmingLevel.Value));
+                    num1 = random.Next(crop.minHarvest.Value, System.Math.Min(crop.minHarvest.Value + 1, crop.maxHarvest.Value + 1 + Game1.player.FarmingLevel / (crop.maxHarvestIncreasePerFarmingLevel.Value > 0 ? crop.maxHarvestIncreasePerFarmingLevel.Value : 1)));
                 if (crop.chanceForExtraCrops.Value > 0.0) {
                     while (random.NextDouble() < System.Math.Min(0.9, crop.chanceForExtraCrops.Value))
                         ++num1;
