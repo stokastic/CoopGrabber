@@ -174,7 +174,7 @@ namespace DeluxeGrabber
                         bool full = false;
                         foreach (Vector2 tile in grabbables) {
 
-                            if (grabber.items.Count >= Chest.capacity) {
+                            if ((grabber.heldObject.Value as Chest).items.Count >= Chest.capacity) {
                                 Monitor.Log($"  Grabber is full", LogLevel.Trace);
                                 full = true;
                                 break;
