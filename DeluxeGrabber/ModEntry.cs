@@ -63,8 +63,7 @@ namespace DeluxeGrabber
                 return;
             }
 
-            GameLocation foragerMap;
-            foragerMap = Game1.getLocationFromName(Config.GlobalForageMap);
+            GameLocation foragerMap = Game1.getLocationFromName(Config.GlobalForageMap);
             if (foragerMap == null) {
                 return;
             }
@@ -75,7 +74,7 @@ namespace DeluxeGrabber
                 return;
             }
 
-            
+
             System.Random random = new System.Random();
             foreach (KeyValuePair<Vector2, SObject> pair in e.Added) {
 
@@ -87,8 +86,7 @@ namespace DeluxeGrabber
                     return;
                 }
 
-                if (pair.Value.ParentSheetIndex == 73) //Ignore Golden Walnuts
-                {
+                if (pair.Value.ParentSheetIndex == 73) { //Ignore Golden Walnuts
                     return;
                 }
 
@@ -305,7 +303,7 @@ namespace DeluxeGrabber
             }
 
             if (!Config.DoHarvestFlowers) {
-                switch(crop.indexOfHarvest.Value) {
+                switch (crop.indexOfHarvest.Value) {
                     case 421: return null; // sunflower
                     case 593: return null; // summer spangle
                     case 595: return null; // fairy rose
@@ -441,69 +439,50 @@ namespace DeluxeGrabber
                         grabbables.Add(pair.Key);
                     }
                 }
-                
-                // Check for Ginger crops on Island Locations
-                if (IsIslandLocation(location))
-                {
-                    foreach (TerrainFeature feature in location.terrainFeatures.Values)
-                    {
 
-                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity)
-                        {
+                // Check for Ginger crops on Island Locations
+                if (IsIslandLocation(location)) {
+                    foreach (TerrainFeature feature in location.terrainFeatures.Values) {
+                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
 
-                        if (feature is HoeDirt dirt)
-                        {
-                            if (dirt.crop != null)
-                            {
-                                if (dirt.crop.forageCrop.Value && dirt.crop.whichForageCrop.Value == 2)
-                                { // Ginger
+                        if (feature is HoeDirt dirt) {
+                            if (dirt.crop != null) {
+                                if (dirt.crop.forageCrop.Value && dirt.crop.whichForageCrop.Value == 2) { // Ginger
                                     SObject ginger = new SObject(829, 1, false, -1, 0);
 
-                                    if (Game1.player.professions.Contains(Farmer.botanist))
-                                    {
+                                    if (Game1.player.professions.Contains(Farmer.botanist)) {
                                         ginger.Quality = 4;
-                                    }
-                                    else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0)
-                                    {
+                                    } else if (random.NextDouble() < Game1.player.ForagingLevel / 30.0) {
                                         ginger.Quality = 2;
-                                    }
-                                    else if (random.NextDouble() < Game1.player.ForagingLevel / 15.0)
-                                    {
+                                    } else if (random.NextDouble() < Game1.player.ForagingLevel / 15.0) {
                                         ginger.Quality = 1;
                                     }
 
-                                    if (Game1.player.professions.Contains(Farmer.gatherer))
-                                    {
-                                        while (random.NextDouble() < 0.2)
-                                        {
+                                    if (Game1.player.professions.Contains(Farmer.gatherer)) {
+                                        while (random.NextDouble() < 0.2) {
                                             ginger.Stack += 1;
                                         }
                                     }
 
                                     (grabber.heldObject.Value as Chest).addItem(ginger);
-                                    if (!itemsAdded.ContainsKey("Ginger"))
-                                    {
+                                    if (!itemsAdded.ContainsKey("Ginger")) {
                                         itemsAdded.Add("Ginger", 1);
-                                    }
-                                    else
-                                    {
+                                    } else {
                                         itemsAdded["Ginger"] += 1;
                                     }
 
                                     dirt.crop = null;
 
-                                    if (Config.DoGainExperience)
-                                    {
+                                    if (Config.DoGainExperience) {
                                         gainExperience(FORAGING, 3);
                                     }
                                 }
                             }
                         }
                     }
-
                 }
 
                 // Check for spring onions
@@ -553,44 +532,31 @@ namespace DeluxeGrabber
                 }
 
                 // Check for berry bushes - Except on Island Locations, avoiding Golden Walnuts
-                if (!IsIslandLocation(location))
-                {
-                    int berryIndex;
-                    string berryType;
+                if (!IsIslandLocation(location)) {
+                    foreach (LargeTerrainFeature feature in location.largeTerrainFeatures) {
+                        int berryIndex;
+                        string berryType;
 
-                    foreach (LargeTerrainFeature feature in location.largeTerrainFeatures)
-                    {
-
-                        if (Game1.currentSeason == "spring")
-                        {
+                        if (Game1.currentSeason == "spring") {
                             berryType = "Salmon Berry";
                             berryIndex = 296;
-                        }
-                        else if (Game1.currentSeason == "fall")
-                        {
+                        } else if (Game1.currentSeason == "fall") {
                             berryType = "Blackberry";
                             berryIndex = 410;
-                        }
-                        else
-                        {
+                        } else {
                             break;
                         }
 
-                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity)
-                        {
+                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
 
-                        if (feature is Bush bush)
-                        {
-                            if (bush.inBloom(Game1.currentSeason, Game1.dayOfMonth) && bush.tileSheetOffset.Value == 1)
-                            {
-
+                        if (feature is Bush bush) {
+                            if (bush.inBloom(Game1.currentSeason, Game1.dayOfMonth) && bush.tileSheetOffset.Value == 1) {
                                 SObject berry = new SObject(berryIndex, 1 + Game1.player.FarmingLevel / 4, false, -1, 0);
 
-                                if (Game1.player.professions.Contains(Farmer.botanist))
-                                {
+                                if (Game1.player.professions.Contains(Farmer.botanist)) {
                                     berry.Quality = 4;
                                 }
 
@@ -598,20 +564,14 @@ namespace DeluxeGrabber
                                 bush.setUpSourceRect();
 
                                 Item item = (grabber.heldObject.Value as Chest).addItem(berry);
-                                if (!itemsAdded.ContainsKey(berryType))
-                                {
+                                if (!itemsAdded.ContainsKey(berryType)) {
                                     itemsAdded.Add(berryType, 1);
-                                }
-                                else
-                                {
+                                } else {
                                     itemsAdded[berryType] += 1;
                                 }
                             }
                         }
                     }
-
-
-
                 }
 
                 // add items to grabber and remove from floor
@@ -754,13 +714,11 @@ namespace DeluxeGrabber
             return false;
         }
 
-        private bool IsIslandLocation(GameLocation location)
-        {
-
-            if (location.Name.Contains("Island") || location.Name.Contains("Volcano") || location.Name.Contains("CaptainRoom"))
-                return true;
-
-            return false;
+        private bool IsIslandLocation(GameLocation location) {
+            return
+                location.Name.Contains("Island")
+                || location.Name.Contains("Volcano")
+                || location.Name.Contains("CaptainRoom");
         }
 
         private void gainExperience(int skill, int xp) {
