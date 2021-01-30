@@ -718,6 +718,7 @@ namespace DeluxeGrabber
             return
                 location.Name.Contains("Island")
                 || location.Name.Contains("Volcano")
+                || location.Name.Contains("Caldera")
                 || location.Name.Contains("CaptainRoom");
         }
 
