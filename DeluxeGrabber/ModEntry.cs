@@ -82,7 +82,7 @@ namespace DeluxeGrabber
                     continue;
                 }
 
-                if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                     return;
                 }
 
@@ -177,7 +177,7 @@ namespace DeluxeGrabber
                         bool full = false;
                         foreach (Vector2 tile in grabbables) {
 
-                            if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                            if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                                 Monitor.Log($"  Grabber is full", LogLevel.Trace);
                                 full = true;
                                 break;
@@ -238,10 +238,10 @@ namespace DeluxeGrabber
                 foreach (KeyValuePair<Vector2, SObject> pair in location.Objects.Pairs) {
                     if (pair.Value.Name.Contains("Grabber")) {
                         SObject grabber = pair.Value;
-                        if ((grabber.heldObject.Value == null) || (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                        if ((grabber.heldObject.Value == null) || (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                             continue;
                         }
-                        bool full = (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity;
+                        bool full = (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity();
                         for (int x = (int)pair.Key.X - range; x < pair.Key.X + range + 1; x ++) {
                             for (int y = (int)pair.Key.Y - range; y < pair.Key.Y + range + 1 && !full; y++) {
                                 Vector2 tile = new Vector2(x, y);
@@ -281,7 +281,7 @@ namespace DeluxeGrabber
                                         }
                                     }
                                 }
-                                full = (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity;
+                                full = (grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity();
                             }
                         }
                         if (grabber != null && (grabber.heldObject.Value as Chest).items.CountIgnoreNull() > 0) {
@@ -443,7 +443,7 @@ namespace DeluxeGrabber
                 // Check for Ginger crops on Island Locations
                 if (IsIslandLocation(location)) {
                     foreach (TerrainFeature feature in location.terrainFeatures.Values) {
-                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
@@ -489,7 +489,7 @@ namespace DeluxeGrabber
                 if (location.Name.Equals("Forest")) {
                     foreach (TerrainFeature feature in location.terrainFeatures.Values) {
 
-                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
@@ -547,7 +547,7 @@ namespace DeluxeGrabber
                             break;
                         }
 
-                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                        if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                             Monitor.Log("Global grabber full", LogLevel.Info);
                             return;
                         }
@@ -577,7 +577,7 @@ namespace DeluxeGrabber
                 // add items to grabber and remove from floor
                 foreach (Vector2 tile in grabbables) {
 
-                    if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity) {
+                    if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity()) {
                         Monitor.Log("Global grabber full", LogLevel.Info);
                         return;
                     }
@@ -620,7 +620,7 @@ namespace DeluxeGrabber
                         foreach (SObject obj in location.Objects.Values)
                         {
 
-                            if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= Chest.capacity)
+                            if ((grabber.heldObject.Value as Chest).items.CountIgnoreNull() >= (grabber.heldObject.Value as Chest).GetActualCapacity())
                             {
                                 Monitor.Log("Global grabber full", LogLevel.Info);
                                 return;
