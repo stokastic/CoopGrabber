@@ -2,9 +2,10 @@
 using System.Collections.Generic;
 
 namespace DeluxeGrabber {
-    public class PrismaticAPI {
-        private ModConfig config = new ModConfig();
-        public int GrabberRange { get { return config.GrabberRange; } }
+    public class ModAPI {
+        private readonly ModConfig Config;
+
+        public int GrabberRange { get { return this.Config.GrabberRange; } }
 
         public IEnumerable<Vector2> GetGrabberCoverage(Vector2 origin) {
             for (int x = -GrabberRange; x <= GrabberRange; x++) {
@@ -12,6 +13,10 @@ namespace DeluxeGrabber {
                     yield return new Vector2(x, y) + origin;
                 }
             }
+        }
+
+        internal ModAPI(ModConfig config) {
+            this.Config = config;
         }
     }
 }
